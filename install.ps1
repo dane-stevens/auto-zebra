@@ -32,17 +32,9 @@ if (-not (Test-Path "$InstallDir\PDFtoPrinter.exe")) {
 }
 
 # --- Locate pythonw.exe ---
-$PythonBase = py -0p | Select-String "\*" -Context 0,0
-if (-not $PythonBase) {
-    Write-Error "Unable to locate Python installation"
-}
-
-$PythonDir = ($PythonBase -replace "^\s*-\S+\s+", "").Trim()
+$PythonExe = py -3 -c "import sys; print(sys.executable)"
+$PythonDir = Split-Path $PythonExe
 $PythonW = Join-Path $PythonDir "pythonw.exe"
-
-if (-not (Test-Path $PythonW)) {
-    Write-Error "pythonw.exe not found at $PythonW"
-}
 
 # --- Startup shortcut ---
 if (-not (Test-Path $ShortcutPath)) {
