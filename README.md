@@ -7,3 +7,8 @@ It watches a folder and when it detects new files downloaded that contain a cert
 ```bash
 curl -fsSL https://raw.githubusercontent.com/dane-stevens/auto-zebra/main/install.sh | bash
 ```
+
+## Install Windows
+```bash
+iwr https://raw.githubusercontent.com/dane-stevens/auto-zebra/main/install.ps1 | iex
+```
