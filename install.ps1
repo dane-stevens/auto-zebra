@@ -22,15 +22,10 @@ if (-not (Get-Command py -ErrorAction SilentlyContinue)) {
 Write-Host "Ensuring pip..."
 py -m pip install --upgrade pip --quiet
 
-# Check if watchdog is installed
-$watchdogInstalled = py -m pip show watchdog 2>$null
 
-if (-not $watchdogInstalled) {
-    Write-Host "Installing watchdog..."
-    py -m pip install watchdog --quiet
-} else {
-    Write-Host "watchdog already installed."
-}
+Write-Host "Installing/updating watchdog..."
+py -m pip install --upgrade watchdog --quiet
+
 
 # ---------------- FILES ----------------
 Write-Host "Updating files..."
