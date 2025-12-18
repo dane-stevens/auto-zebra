@@ -58,7 +58,7 @@ class PDFHandler(FileSystemEventHandler):
             subprocess.run([
                 "powershell",
                 "-Command",
-                f'C:\\Users\\info\\PDFtoPrinter.exe "{file_path}" "{PRINTER_NAME}"'
+                f'C:\\auto-zebra\\PDFtoPrinter.exe "{file_path}" "{PRINTER_NAME}"'
             ], shell=True, check=True)
 
             time.sleep(WAIT_SECONDS)
