@@ -1,17 +1,33 @@
 import os
+import json
 import time
 import subprocess
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
+# Path to config file
+CONFIG_FILE = os.path.join(os.path.dirname(__file__), "config.json")
+
+DEFAULT_CONFIG = {
+  PRINTER_NAME: "ZDesigner ZD410-300dpi ZPL",
+  KEYWORDS: ["TreatmentLabel", "RxLabel"]
+}
+
+# Load config
+if os.path.exists(CONFIG_FILE):
+    with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+        config = json.load(f)
+else:
+    config = DEFAULT_CONFIG
+
 # ️ Path to your Downloads folder
 DOWNLOADS_FOLDER = os.path.join(os.path.expanduser("~"), "Downloads")
 
 # ️ Printer name
-PRINTER_NAME = "ZDesigner ZD410-300dpi ZPL"
+PRINTER_NAME = config.get("PRINTER_NAME") 
 
 #  Keywords to match in filenames
-KEYWORDS = ["TreatmentLabel", "RxLabel"]
+KEYWORDS = config.get("KEYWORDS")
 
 # ⏱️ Wait before printing (seconds) - helps avoid printing incomplete downloads
 WAIT_SECONDS = 2

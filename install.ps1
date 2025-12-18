@@ -45,6 +45,14 @@ if (-not (Test-Path "$InstallDir\PDFtoPrinter.exe")) {
     Write-Host "PDFtoPrinter.exe already exists."
 }
 
+if (-not (Test-Path "$InstallDir\config.json")) {
+    Write-Host "Downloading config.json..."
+    Invoke-WebRequest "$RepoRaw/config.json" `
+        -OutFile "$InstallDir\config.json"
+} else {
+    Write-Host "config.json already exists."
+}
+
 # ---------------- FIND PYTHONW ----------------
 Write-Host "Locating pythonw.exe..."
 
