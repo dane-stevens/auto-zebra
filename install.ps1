@@ -20,7 +20,6 @@ if (-not (Get-Command py -ErrorAction SilentlyContinue)) {
 
 # ---------------- PIP / WATCHDOG ----------------
 Write-Host "Ensuring pip..."
-py -m ensurepip --upgrade 2>$null
 py -m pip install --upgrade pip --quiet
 
 if (-not (py -m pip show watchdog 2>$null)) {
