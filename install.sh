@@ -5,7 +5,7 @@ echo "== Auto Zebra install =="
 
 # --- CONFIG ---
 INSTALL_DIR="C:/auto-zebra"
-REPO_RAW="https://raw.githubusercontent.com/dane-stevens/auto-zebra/main"
+REPO_RAW="https://raw.githubusercontent.com/dane-stevens/auto-zebra/main/src"
 STARTUP_DIR="$(cmd.exe /c 'echo %APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup' 2>/dev/null | tr -d '\r')"
 SHORTCUT_PATH="$STARTUP_DIR/Auto Print Labels.lnk"
 
