@@ -31,11 +31,26 @@ if (-not (Test-Path "$InstallDir\PDFtoPrinter.exe")) {
     Invoke-WebRequest "$RepoRaw/PDFtoPrinter.exe" -OutFile "$InstallDir\PDFtoPrinter.exe"
 }
 
+# --- Locate pythonw.exe ---
+$PythonBase = py -0p | Select-String "\*" -Context 0,0
+if (-not $PythonBase) {
+    Write-Error "Unable to locate Python installation"
+}
+
+$PythonDir = ($PythonBase -replace "^\s*-\S+\s+", "").Trim()
+$PythonW = Join-Path $PythonDir "pythonw.exe"
+
+if (-not (Test-Path $PythonW)) {
+    Write-Error "pythonw.exe not found at $PythonW"
+}
+
 # --- Startup shortcut ---
 if (-not (Test-Path $ShortcutPath)) {
+    Write-Host "Creating startup shortcut..."
+
     $WshShell = New-Object -ComObject WScript.Shell
     $Shortcut = $WshShell.CreateShortcut($ShortcutPath)
-    $Shortcut.TargetPath = "pythonw.exe"
+    $Shortcut.TargetPath = $PythonW
     $Shortcut.Arguments = "`"$InstallDir\auto_print_labels.py`""
     $Shortcut.WorkingDirectory = $InstallDir
     $Shortcut.Save()
