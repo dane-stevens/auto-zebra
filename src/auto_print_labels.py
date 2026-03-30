@@ -10,7 +10,7 @@ CONFIG_FILE = os.path.join(os.path.dirname(__file__), "config.json")
 
 DEFAULT_CONFIG = {
   PRINTER_NAME: "ZDesigner ZD410-300dpi ZPL",
-  KEYWORDS: ["TreatmentLabel", "RxLabel"]
+  KEYWORDS: ["TreatmentLabel", "RxLabel", "PatientLabel"]
 }
 
 # Load config
