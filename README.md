@@ -18,5 +18,3 @@ iwr https://raw.githubusercontent.com/dane-stevens/auto-zebra/main/install.ps1 |
 2. `Ctrl` + `K` to open settings
 3. General
 4. Uncheck "Always open PDFs saved from the web / Open PDFs automatically in Reader when they are downloaded in Chrome browser
-
-[Zoho Assist Agent](https://assist.zoho.com/unattended-installer?encapiKey=wSsVRa10%2FR%2FxC6p9nmCtcbg%2FnFgBAFOkQE953Qbz7nT%2FHvvHoccylkOfVAX2TfIfR2ZuFzMb9%2B8gyRsAgDsL3dx%2Fm14EXSiF9mqRe1U4J3x1pL%2FskjHPXW1dkxOILo4PwQxrmg%3D%3D&x-com-zoho-assist-orgid=682681260)
