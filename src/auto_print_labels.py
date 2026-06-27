@@ -1,49 +1,42 @@
 import os
 import json
 import time
+import logging
 import subprocess
+from logging.handlers import RotatingFileHandler
+
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
-# Path to config file
-CONFIG_FILE = os.path.join(os.path.dirname(__file__), "config.json")
+# ---------------- PATHS ----------------
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
+LOG_FILE = os.path.join(BASE_DIR, "auto-zebra.log")
+PDF_TO_PRINTER = os.path.join(BASE_DIR, "PDFtoPrinter.exe")
+
+# ---------------- DEFAULT CONFIG ----------------
 
 DEFAULT_CONFIG = {
-  PRINTER_NAME: "ZDesigner ZD410-300dpi ZPL",
-  KEYWORDS: ["TreatmentLabel", "RxLabel", "PatientLabel"]
+    "PRINTER_NAME": "ZDesigner ZD410-300dpi ZPL",
+    "KEYWORDS": [
+        "TreatmentLabel",
+        "RxLabel",
+        "PatientLabel"
+    ]
 }
 
-# Load config
-if os.path.exists(CONFIG_FILE):
-    with open(CONFIG_FILE, "r", encoding="utf-8") as f:
-        config = json.load(f)
-else:
-    config = DEFAULT_CONFIG
-
-# ️ Path to your Downloads folder
-DOWNLOADS_FOLDER = os.path.join(os.path.expanduser("~"), "Downloads")
-
-# ️ Printer name
-PRINTER_NAME = config.get("PRINTER_NAME") 
-
-#  Keywords to match in filenames
-KEYWORDS = config.get("KEYWORDS")
-
-# ⏱️ Wait before printing (seconds) - helps avoid printing incomplete downloads
-WAIT_SECONDS = 2
-
-# Logging
-LOG_FILE = os.path.join(os.path.dirname(__file__), "auto-zebra.log")
+# ---------------- LOGGING ----------------
 
 logging.basicConfig(
     handlers=[
         RotatingFileHandler(
             LOG_FILE,
-            maxBytes=1_000_000,   # 1 MB
-            backupCount=5,        # Keep 5 old logs
+            maxBytes=1_000_000,
+            backupCount=5,
             encoding="utf-8"
-        ),
-        logging.StreamHandler()   # Still print to console
+        )
     ],
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s"
@@ -51,8 +44,29 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+# ---------------- LOAD CONFIG ----------------
+
+config = DEFAULT_CONFIG.copy()
+
+if os.path.exists(CONFIG_FILE):
+    try:
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            config.update(json.load(f))
+    except Exception:
+        logger.exception("Failed to load config.json. Using defaults.")
+
+# ---------------- SETTINGS ----------------
+
+DOWNLOADS_FOLDER = os.path.join(os.path.expanduser("~"), "Downloads")
+
+PRINTER_NAME = config.get("PRINTER_NAME")
+KEYWORDS = config.get("KEYWORDS", [])
+
+WAIT_SECONDS = 2
+
 
 class PDFHandler(FileSystemEventHandler):
+
     def on_created(self, event):
         self.handle_event(event.src_path)
 
@@ -67,63 +81,99 @@ class PDFHandler(FileSystemEventHandler):
 
         if (
             file_path.lower().endswith(".pdf")
-            and any(k.lower() in file_name.lower() for k in KEYWORDS)
+            and any(keyword.lower() in file_name.lower() for keyword in KEYWORDS)
         ):
-            logger.info(f"📄 Detected matching PDF: {file_name}")
+            logger.info("Detected matching PDF: %s", file_name)
             self.wait_for_download(file_path)
             self.print_and_delete(file_path)
 
     def wait_for_download(self, file_path):
-        """Wait until file size stops changing"""
+        """Wait until the file size stops changing."""
+
         last_size = -1
+
         while True:
             try:
                 size = os.path.getsize(file_path)
+
                 if size == last_size:
-                    break
+                    return
+
                 last_size = size
                 time.sleep(1)
+
             except FileNotFoundError:
                 time.sleep(1)
 
     def print_and_delete(self, file_path):
+
         try:
-            logger.info(f"️ Sending '{file_path}' to printer '{PRINTER_NAME}'...")
-            # Use PowerShell to send to printer
-            subprocess.run([
-                "powershell",
-                "-Command",
-                f'C:\\auto-zebra\\PDFtoPrinter.exe "{file_path}" "{PRINTER_NAME}"'
-            ], shell=True, check=True)
+
+            logger.info(
+                "Sending '%s' to printer '%s'",
+                file_path,
+                PRINTER_NAME
+            )
+
+            subprocess.run(
+                [
+                    PDF_TO_PRINTER,
+                    file_path,
+                    PRINTER_NAME,
+                ],
+                check=True
+            )
 
             time.sleep(WAIT_SECONDS)
-            logger.info("✅ Print command sent successfully. Deleting file...")
+
+            logger.info("Print command completed.")
+
             os.remove(file_path)
-            logger.info(f"️ Deleted: {file_path}")
 
-        except subprocess.CalledProcessError as e:
-            logger.error(f"❌ Print command failed: {e}")
+            logger.info("Deleted %s", file_path)
+
+        except subprocess.CalledProcessError:
+            logger.exception("Printing failed.")
+
         except PermissionError:
-            logger.warning(f"⚠️ Could not delete '{file_path}' (file in use). Will retry later.")
-        except Exception as e:
-            logger.error(f"❌ Error: {e}")
+            logger.warning(
+                "Could not delete '%s' because it is still in use.",
+                file_path
+            )
 
+        except Exception:
+            logger.exception("Unexpected error while printing.")
 
-if __name__ == "__main__":
-    event_handler = PDFHandler()
+# ---------------- MAIN ----------------
+
+def main():
+
+    logger.info("----------------------------------------")
+    logger.info("Auto Zebra started")
+    logger.info("Watching folder: %s", DOWNLOADS_FOLDER)
+    logger.info("Printer: %s", PRINTER_NAME)
+    logger.info("Keywords: %s", KEYWORDS)
+
     observer = Observer()
-    observer.schedule(event_handler, DOWNLOADS_FOLDER, recursive=False)
-
-    logger.info(f" Watching folder: {DOWNLOADS_FOLDER}")
-    logger.info(f" Target printer: {PRINTER_NAME}")
-    logger.info(f" Matching filenames containing: {KEYWORDS}")
-    logger.info(" Press Ctrl+C to stop.\n")
-
+    observer.schedule(PDFHandler(), DOWNLOADS_FOLDER, recursive=False)
     observer.start()
+
     try:
         while True:
             time.sleep(2)
+
     except KeyboardInterrupt:
+        logger.info("Stopping...")
         observer.stop()
+
     observer.join()
 
+
+if __name__ == "__main__":
+
+    try:
+        main()
+
+    except Exception:
+        logger.exception("Fatal startup error.")
+        raise
