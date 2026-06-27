@@ -32,6 +32,25 @@ KEYWORDS = config.get("KEYWORDS")
 # ⏱️ Wait before printing (seconds) - helps avoid printing incomplete downloads
 WAIT_SECONDS = 2
 
+# Logging
+LOG_FILE = os.path.join(os.path.dirname(__file__), "auto-zebra.log")
+
+logging.basicConfig(
+    handlers=[
+        RotatingFileHandler(
+            LOG_FILE,
+            maxBytes=1_000_000,   # 1 MB
+            backupCount=5,        # Keep 5 old logs
+            encoding="utf-8"
+        ),
+        logging.StreamHandler()   # Still print to console
+    ],
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s"
+)
+
+logger = logging.getLogger(__name__)
+
 
 class PDFHandler(FileSystemEventHandler):
     def on_created(self, event):
@@ -50,7 +69,7 @@ class PDFHandler(FileSystemEventHandler):
             file_path.lower().endswith(".pdf")
             and any(k.lower() in file_name.lower() for k in KEYWORDS)
         ):
-            print(f"📄 Detected matching PDF: {file_name}")
+            logger.info(f"📄 Detected matching PDF: {file_name}")
             self.wait_for_download(file_path)
             self.print_and_delete(file_path)
 
@@ -69,7 +88,7 @@ class PDFHandler(FileSystemEventHandler):
 
     def print_and_delete(self, file_path):
         try:
-            print(f"️ Sending '{file_path}' to printer '{PRINTER_NAME}'...")
+            logger.info(f"️ Sending '{file_path}' to printer '{PRINTER_NAME}'...")
             # Use PowerShell to send to printer
             subprocess.run([
                 "powershell",
@@ -78,16 +97,16 @@ class PDFHandler(FileSystemEventHandler):
             ], shell=True, check=True)
 
             time.sleep(WAIT_SECONDS)
-            print("✅ Print command sent successfully. Deleting file...")
+            logger.info("✅ Print command sent successfully. Deleting file...")
             os.remove(file_path)
-            print(f"️ Deleted: {file_path}")
+            logger.info(f"️ Deleted: {file_path}")
 
         except subprocess.CalledProcessError as e:
-            print(f"❌ Print command failed: {e}")
+            logger.error(f"❌ Print command failed: {e}")
         except PermissionError:
-            print(f"⚠️ Could not delete '{file_path}' (file in use). Will retry later.")
+            logger.warning(f"⚠️ Could not delete '{file_path}' (file in use). Will retry later.")
         except Exception as e:
-            print(f"❌ Error: {e}")
+            logger.error(f"❌ Error: {e}")
 
 
 if __name__ == "__main__":
@@ -95,10 +114,10 @@ if __name__ == "__main__":
     observer = Observer()
     observer.schedule(event_handler, DOWNLOADS_FOLDER, recursive=False)
 
-    print(f" Watching folder: {DOWNLOADS_FOLDER}")
-    print(f" Target printer: {PRINTER_NAME}")
-    print(f" Matching filenames containing: {KEYWORDS}")
-    print(" Press Ctrl+C to stop.\n")
+    logger.info(f" Watching folder: {DOWNLOADS_FOLDER}")
+    logger.info(f" Target printer: {PRINTER_NAME}")
+    logger.info(f" Matching filenames containing: {KEYWORDS}")
+    logger.info(" Press Ctrl+C to stop.\n")
 
     observer.start()
     try:
