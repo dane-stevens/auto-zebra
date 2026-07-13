@@ -6,7 +6,7 @@ It watches a folder and when it detects new files downloaded that contain a cert
 
 ## 1. Install on Windows
 
-From Powershell
+From Powershell:
 
 ```bash
 iwr https://raw.githubusercontent.com/dane-stevens/auto-zebra/main/install.ps1 | iex
