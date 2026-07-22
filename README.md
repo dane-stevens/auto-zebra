@@ -12,7 +12,13 @@ From Powershell:
 iwr https://raw.githubusercontent.com/dane-stevens/auto-zebra/main/install.ps1 | iex
 ```
 
-## 2. Disable automatic opening of PDFs
+## 2. Printer config
+Width: 35.6 mm
+Height: 88.9 mm
+<img width="769" height="547" alt="image" src="https://github.com/user-attachments/assets/63459ea9-5835-48ef-86a3-a7c2b0e6ca8a" />
+
+
+## 3. Disable automatic opening of PDFs
 
 1. Open Adobe Acrobat
 2. `Ctrl` + `K` to open settings
