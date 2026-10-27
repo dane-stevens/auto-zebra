@@ -1,31 +1,70 @@
+powershell
 $ErrorActionPreference = "Stop"
 
 Write-Host "== Auto Zebra install =="
 
 # ---------------- CONFIG ----------------
-$InstallDir  = "C:\auto-zebra"
-$RepoRaw     = "https://raw.githubusercontent.com/dane-stevens/auto-zebra/main/src"
-$StartupDir  = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup"
+$InstallDir   = "C:\auto-zebra"
+$RepoRaw      = "https://raw.githubusercontent.com/dane-stevens/auto-zebra/main/src"
+$StartupDir   = "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup"
 $ShortcutPath = "$StartupDir\Auto Print Labels.lnk"
 
 # ---------------- PYTHON ----------------
-if (-not (Get-Command py -ErrorAction SilentlyContinue)) {
-    Write-Host "Python not found. Installing..."
-    winget install 9NQ7512CXL7T -e `
+$PyCommand = Get-Command py -ErrorAction SilentlyContinue
+
+if (-not $PyCommand) {
+    Write-Host "Python launcher not found. Installing Python 3.13..."
+
+    # Explicitly use the community repository, not Microsoft Store.
+    & winget install --id Python.Python.3.13 --exact `
+        --source winget `
         --accept-package-agreements `
         --accept-source-agreements
-} else {
-    Write-Host "Python already installed."
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Python installation failed. Check WinGet/network errors above."
+    }
+
+    # Refresh PATH for this PowerShell process.
+    $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") +
+        ";" +
+        [Environment]::GetEnvironmentVariable("Path", "User")
+
+    $PyCommand = Get-Command py -ErrorAction SilentlyContinue
+}
+
+if (-not $PyCommand) {
+    throw "Python launcher is still unavailable. Reopen PowerShell and rerun."
+}
+
+# Resolve the launcher path for subsequent commands.
+$PyExe = $PyCommand.Source
+if (-not $PyExe) { $PyExe = $PyCommand.Path }
+
+Write-Host "Using Python launcher: $PyExe"
+
+& $PyExe -3 -c "import sys; print(sys.version)"
+if ($LASTEXITCODE -ne 0) {
+    throw "Python could not start."
 }
 
 # ---------------- PIP / WATCHDOG ----------------
 Write-Host "Ensuring pip..."
-py -m pip install --upgrade pip --quiet
+& $PyExe -3 -m ensurepip --upgrade
+if ($LASTEXITCODE -ne 0) {
+    throw "ensurepip failed."
+}
 
+& $PyExe -3 -m pip install --upgrade pip
+if ($LASTEXITCODE -ne 0) {
+    throw "pip upgrade failed."
+}
 
 Write-Host "Installing/updating watchdog..."
-py -m pip install --upgrade watchdog --quiet
-
+& $PyExe -3 -m pip install --upgrade watchdog
+if ($LASTEXITCODE -ne 0) {
+    throw "watchdog installation failed."
+}
 
 # ---------------- FILES ----------------
 Write-Host "Updating files..."
@@ -50,18 +89,21 @@ if (-not (Test-Path "$InstallDir\config.json")) {
     Invoke-WebRequest "$RepoRaw/config.json" `
         -OutFile "$InstallDir\config.json"
 } else {
-    Write-Host "config.json already exists."
+    Write-Host "Keeping existing config.json."
 }
 
 # ---------------- FIND PYTHONW ----------------
 Write-Host "Locating pythonw.exe..."
 
-$PythonExe = & py -3 -c "import sys; print(sys.executable)" 2>$null |
-    Select-Object -Last 1 |
-    ForEach-Object { $_.Trim() }
+$PythonExe = & $PyExe -3 -c "import sys; print(sys.executable)"
+if ($LASTEXITCODE -ne 0 -or -not $PythonExe) {
+    throw "Failed to locate python.exe."
+}
 
-if (-not $PythonExe -or -not (Test-Path $PythonExe)) {
-    throw "Failed to locate python.exe via py launcher"
+$PythonExe = ($PythonExe | Select-Object -Last 1).Trim()
+
+if (-not (Test-Path $PythonExe)) {
+    throw "Python executable not found: $PythonExe"
 }
 
 $PythonDir = Split-Path $PythonExe
@@ -72,18 +114,15 @@ if (-not (Test-Path $PythonW)) {
 }
 
 # ---------------- STARTUP SHORTCUT ----------------
-if (-not (Test-Path $ShortcutPath)) {
-    Write-Host "Creating startup shortcut..."
+New-Item -ItemType Directory -Force -Path $StartupDir | Out-Null
 
-    $WshShell = New-Object -ComObject WScript.Shell
-    $Shortcut = $WshShell.CreateShortcut($ShortcutPath)
-    $Shortcut.TargetPath = $PythonW
-    $Shortcut.Arguments  = "`"$InstallDir\auto_print_labels.py`""
-    $Shortcut.WorkingDirectory = $InstallDir
-    $Shortcut.Save()
-} else {
-    Write-Host "Startup shortcut already exists."
-}
+Write-Host "Creating/updating startup shortcut..."
 
-Write-Host "✔ Auto Zebra installed / updated"
-Write-Host "✔ Safe to re-run this installer"
+$WshShell = New-Object -ComObject WScript.Shell
+$Shortcut = $WshShell.CreateShortcut($ShortcutPath)
+$Shortcut.TargetPath = $PythonW
+$Shortcut.Arguments = "`"$InstallDir\auto_print_labels.py`""
+$Shortcut.WorkingDirectory = $InstallDir
+$Shortcut.Save()
+
+Write-Host "Auto Zebra installed / updated successfully."
